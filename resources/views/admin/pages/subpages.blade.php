@@ -1,7 +1,7 @@
 @extends('admin.layout.main')
 
 @section('seo-title')
-<title>{{ __('All pages') }} {{ config('app.seo-separator') }} {{ config('app.name') }}</title>
+<title>{{ __('Subpages') }} {{ config('app.seo-separator') }} {{ config('app.name') }}</title>
 @endsection
 
 @section('custom-css')
@@ -11,7 +11,7 @@
 
 @section('content')
 <!-- Page Heading -->
-<h1 class="h3 mb-4 text-gray-800">{{ __('All pages') }}</h1>
+<h1 class="h3 mb-4 text-gray-800">{{ __('Subpages') }}</h1>
 
 @include('admin.layout.partials.messages')
 
@@ -24,15 +24,16 @@
             <table class="table table-bordered" id="rows" width="100%" cellspacing="0">
                 <thead>
                     <tr>
-                        <th>Parent Title Page</th>
-                        <th>Subpages link</th>
-                        <th>Options</th>
+                        <th>Title</th>
+                        <th>Image</th>
+                        <th>Active</th>
+                         <th>Options</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if(count($rows) > 0)
-                        @foreach($rows as $key => $value)
-                         @if($value->page_id == 0)
+                   
+                        @foreach($subpages as $key => $value)
+                        
                             <tr>
                                
                                 <td>
@@ -41,18 +42,26 @@
                                    
                                    
                                 </td>
-                                <td class="text-center text-white">
-                                    <a data-placement="top" title='Subpages' href='{{ route("pages.subpages", ["page" => $value->id]) }}' class="btn btn-sm btn-success tooltip-custom">Subpages</a>
+                                <td>
+                                   
+                                    {{ $value->image }}
+                                   
+                                   
+                                </td>
+                                <td>
+                                   
+                                    {{ $value->active }}
+                                   
+                                   
                                 </td>
                                 <td class="text-center text-white">
                                     <a data-placement="top" title='Edit page' href='{{ route("pages.edit", ["page" => $value->id]) }}' class="btn btn-sm btn-primary tooltip-custom">{{ __('Edit') }}</a>
-                                    
                                     <a data-placement="top" title='Delete page {{ $value->title }}' data-name='{{ $value->title }}' data-toggle="modal" data-target="#deleteModal" data-href='{{ route("pages.delete", ["page" => $value->id]) }}' class="btn btn-sm btn-danger tooltip-custom">{{ __('Delete') }}</a>
                                 </td>
                             </tr>
-                           @endif
+                          
                         @endforeach
-                    @endif
+                  
                 </tbody>
             </table>
         </div>

@@ -85,7 +85,7 @@ class UsersController extends Controller
         session()->flash('message-type', 'success');
         session()->flash('message-text', 'Successfully created user!!!');
         
-        return redirect()->route('pages.index');
+        return redirect()->route('users.index');
     }
     
     public function edit(User $user){

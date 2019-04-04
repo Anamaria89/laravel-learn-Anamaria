@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Page;
+use App\Model\Page;
+use Illuminate\Support\Str;
+use Intervention\Image\Facades\Image;
 
 class PagesController extends Controller
 {
@@ -15,9 +17,9 @@ class PagesController extends Controller
      */
     public function index()
     {
-          $pages = Page::all();
-          
-          return view('admin.pages.index', compact('pages'));
+        $rows = Page::all();
+        
+        return view('admin.pages.index', compact('rows'));
     }
 
     /**
@@ -27,78 +29,99 @@ class PagesController extends Controller
      */
     public function create()
     {
-        return view('admin.pages.create');
+        $pagesTopLevel = Page::topLevel()
+                ->notdeleted()
+                ->get();
+        return view('admin.pages.create', compact('pagesTopLevel'));
     }
-    public function fileUpload(Request $request) {
-    $this->validate($request, [
-        'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-    ]);
 
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $name = time().'.'.$image->getClientOriginalExtension();
-            $destinationPath = public_path('/images');
-            $image->move($destinationPath, $name);
-            $this->save();
-
-            //return back()->with('success','Image Upload successfully');
-        }
-    }
     /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Page $page)
+    public function store(Request $request)
     {
-         //validacija
-        request()->validate([
+        $pagesIds = Page::pluck('id')->all();
+        $pagesIds[] = 0;
+        $pagesIds = implode(",", $pagesIds);
+        $data = request()->validate([
+            'page_id' => 'required|integer|in:'.$pagesIds,
             'title' => 'required|string|min:3|max:191',
             'description' => 'required|string|max:191',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'content' => 'required|string',
-            'layout' => 'required|string',
-            'contact_form' => 'integer',
-             'header' => 'integer',
-             'aside' => 'integer',
-             'footer' => 'integer',
-             'active' => 'integer',
+            'image' => 'required|image|mimes:jpeg,bmp,png,jpg',
+            'content' => 'required|string|min:3|max:65000',
+            'layout' => 'required|string|in:fullwidth,leftaside,rightaside',
+            'contact_form' => 'required|boolean',
+            'header' => 'required|boolean',
+            'aside' => 'required|boolean',
+            'footer' => 'required|boolean',
+            'active' => 'required|boolean',
         ]);
         
-         $page->title = request()->title;
-         $page->description = request()->description;
-//          if (request()->hasFile('image')) {
-//            $image = request()->file('image');
-//            $name = time().'.'.$image->getClientOriginalExtension();
-//            $destinationPath = public_path('/images');
-//            $image->move($destinationPath, $name);
-//            //$this->save();
-//
-//            //return back()->with('success','Image Upload successfully');
-//        }
-         $page->image = request()->image;
-         $name = time().'.'.$page->image->getClientOriginalExtension();
-         $destinationPath = public_path('/images');
-         $page->image->move($destinationPath, $name);
-         $page->image = $name;
-        // $page->image->save();
-         $page->content = request()->content;
-         $page->contact_form = request()->contact_form;
-         $page->header = request()->header;
-         $page->aside = request()->aside;
-         $page->footer = request()->footer;
-         $page->active = request()->active;
-         
-         $page->save();
+        $row = new Page();
         
+        unset($data['image']);
+        foreach ($data as $key => $value) {
+            $row->$key = $value;
+        }
+        
+        $row->image = "";
+        // provera da li uopste dolazi 'image' kroz request
+        if(request()->has('image')){
+            $file = request()->image;
+            $fileExtension = $file->getClientOriginalExtension();
+            
+            $fileName = $file->getClientOriginalName();
+            $fileName = pathinfo($fileName, PATHINFO_FILENAME);
+            $fileName = config('app.seo-image-prefiks') . Str::slug(request('title'), '-') . '-' . Str::slug(now(), '-') . '.' . $fileExtension;
+            
+            //echo public_path('/upload/pages/');
+            $file->move(public_path('/upload/pages/'), $fileName);
+            
+            $row->image = '/upload/pages/' . $fileName;
+            
+            // intervetion
+            // xl velicina
+            $intervetionImage = Image::make(public_path('/upload/pages/').$fileName);
+            $intervetionImage->resize(1140, null, function ($constraint) {
+                $constraint->aspectRatio();
+            });
+            $fileNameXL = '/upload/pages/' . config('app.seo-image-prefiks') . Str::slug(request('title'), '-') . '-' . Str::slug(now(), '-') . '-xl.' . $fileExtension;
+            $intervetionImage->save(public_path($fileNameXL));
+            
+            // m velicina
+            $intervetionImage = Image::make(public_path('/upload/pages/').$fileName);
+            $intervetionImage->resize(800, null, function ($constraint) {
+                $constraint->aspectRatio();
+            });
+            $fileNameM = '/upload/pages/' . config('app.seo-image-prefiks') . Str::slug(request('title'), '-') . '-' . Str::slug(now(), '-') . '-m.' . $fileExtension;
+            $intervetionImage->save(public_path($fileNameM));
+            
+            // s velicina
+            $intervetionImage = Image::make(public_path('/upload/pages/').$fileName);
+            $intervetionImage->resize(300, null, function ($constraint) {
+                $constraint->aspectRatio();
+            });
+            $fileNameS = '/upload/pages/' . config('app.seo-image-prefiks') . Str::slug(request('title'), '-') . '-' . Str::slug(now(), '-') . '-s.' . $fileExtension;
+            $intervetionImage->save(public_path($fileNameS));
+        }
+        
+        $row->save();
         
         session()->flash('message-type', 'success');
-        session()->flash('message-text', 'Successfully created page!!!');
+        session()->flash('message-text', 'Successfully created page ' . $row->title . '!!!');
         
         return redirect()->route('pages.index');
     }
-
+     public function subpages($id)
+    {
+        $subpages = Page::where('page_id', $id)->get();
+        
+       // dd($subpages);
+        return view('admin.pages.subpages', compact('subpages'));
+    }
     /**
      * Display the specified resource.
      *
